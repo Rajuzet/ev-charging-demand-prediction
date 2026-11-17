@@ -616,8 +616,35 @@ if is_ready:
     # TAB 2: DEMAND PREDICTOR (REGRESSION)
     # =========================================================================
     elif app_mode == "⚡ Demand Predictor (Regression)":
-        st.markdown("## ⚡ Session Energy Demand Predictor")
-        st.markdown(f"Powered by the champion **{metrics.get('best_regression_model', 'Random Forest')}** regressor ($R^2 = 0.80$, MAE $= 3.38$ kWh).")
+        st.markdown("## ⚡ Session Energy Demand Predictor (Regression)")
+        st.markdown(f"Trained with **{metrics.get('best_regression_model', 'Random Forest')}** regressor. Evaluated on test split:")
+
+        # Regression Metrics Proportional Card Strip (MAE, MSE, RMSE, R2)
+        best_reg_stats = metrics['regression_metrics'].get(metrics.get('best_regression_model', 'Random Forest'), {})
+        st.markdown(f"""
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px;">
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #0284C7; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">MAE (Mean Absolute Error)</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #0284C7; margin: 2px 0;">{best_reg_stats.get('MAE', 3.38):.3f} <span style="font-size: 0.8rem; color: #64748B;">kWh</span></div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">Avg. prediction deviation</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #6366F1; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">MSE (Mean Squared Error)</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #6366F1; margin: 2px 0;">{best_reg_stats.get('MSE', 36.98):.2f}</div>
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 600;">Variance penalty</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #F59E0B; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">RMSE (Root Mean Sq Error)</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #F59E0B; margin: 2px 0;">{best_reg_stats.get('RMSE', 6.08):.3f} <span style="font-size: 0.8rem; color: #64748B;">kWh</span></div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">Standard error scale</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #10B981; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">R² Score (Explained Variance)</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #10B981; margin: 2px 0;">{best_reg_stats.get('R2', 0.7983):.4f}</div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">~80% variance captured</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         # State Management for Scenario Presets
         if 'reg_dur' not in st.session_state:
@@ -761,7 +788,43 @@ if is_ready:
     # =========================================================================
     elif app_mode == "🎯 High-Demand Classifier":
         st.markdown("## 🎯 High-Demand Session Classifier")
-        st.markdown(f"Evaluated with **{metrics.get('best_classification_model', 'XGBoost')}** (Accuracy $= 90.1\%$, F1 $= 0.904$, ROC-AUC $= 0.961$). Identifies if session $\ge 14.20$ kWh.")
+        st.markdown(f"Trained with **{metrics.get('best_classification_model', 'XGBoost')}** classifier to identify peak load sessions ($\ge 14.20$ kWh). Evaluated on test split:")
+
+        # Classification Metrics Proportional Card Strip (Accuracy, Precision, Recall, F1, ROC-AUC)
+        best_clf_stats = metrics['classification_metrics'].get(metrics.get('best_classification_model', 'XGBoost'), {})
+        st.markdown(f"""
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px;">
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #0284C7; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">Accuracy</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #0284C7; margin: 2px 0;">{best_clf_stats.get('Accuracy', 0.9013)*100:.1f}%</div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">Overall correct tiers</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #6366F1; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">Precision</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #6366F1; margin: 2px 0;">{best_clf_stats.get('Precision', 0.8745)*100:.1f}%</div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">Low false-alarm rate</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #EC4899; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">Recall / Sensitivity</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #EC4899; margin: 2px 0;">{best_clf_stats.get('Recall', 0.9364)*100:.1f}%</div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">Captures 93.6% peak surges</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #F59E0B; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">F1-Score</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #F59E0B; margin: 2px 0;">{best_clf_stats.get('F1', 0.9044):.4f}</div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">Harmonic mean balance</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #10B981; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">ROC-AUC Score</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #10B981; margin: 2px 0;">{best_clf_stats.get('ROC_AUC', 0.9615):.4f}</div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">Outstanding separation</div>
+            </div>
+        </div>
+        <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 10px 14px; margin-bottom: 22px; font-size: 0.8rem; color: #1E40AF; display: flex; align-items: center; justify-content: space-between;">
+            <span>⚖️ <b>Class Imbalance Mitigation:</b> ADASYN synthetic oversampling boosted minority peak-demand recall from <b>83.15%</b> to <b>93.74%</b> with zero sample leakage.</span>
+            <span style="background: #DBEAFE; color: #1E3A8A; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem;">ADASYN + XGBoost Champion</span>
+        </div>
+        """, unsafe_allow_html=True)
 
         cl1, cl2 = st.columns([1, 1])
         with cl1:
@@ -840,16 +903,36 @@ if is_ready:
     # =========================================================================
     elif app_mode == "⏳ Time-Series Forecasting":
         st.markdown("## ⏳ EV Charging Demand Time Series Forecasting")
-        st.markdown("Long-term usage patterns, Augmented Dickey-Fuller stationarity, and multi-step demand forecasting.")
+        st.markdown("Long-term aggregate daily usage patterns, Augmented Dickey-Fuller stationarity test, and multi-step future demand forecasting.")
 
         ts_stats = metrics.get('timeseries_metrics', {}).get('Stationarity_ADF', {})
-        t1, t2, t3 = st.columns(3)
-        with t1:
-            st.metric("ADF Test Statistic", f"{ts_stats.get('ADF_Statistic', -1.88):.4f}")
-        with t2:
-            st.metric("ADF p-value", f"{ts_stats.get('p_value', 0.3415):.4f}")
-        with t3:
-            st.metric("Series Stationarity", "Non-Stationary (Growth Trend)", delta="Upward Market Trend")
+        ts_models = metrics.get('timeseries_metrics', {}).get('Models', {})
+
+        # Time Series Proportional Metric Card Strip (ADF, 7D-MA, SES, Holt-Winters)
+        st.markdown(f"""
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 20px;">
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #6366F1; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">ADF Stationarity Test</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #6366F1; margin: 2px 0;">p = {ts_stats.get('p_value', 0.3415):.4f}</div>
+                <div style="font-size: 0.72rem; color: #F59E0B; font-weight: 600;">Non-Stationary (Stat: {ts_stats.get('ADF_Statistic', -1.88):.2f})</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #0284C7; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">7-Day Moving Average</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #0284C7; margin: 2px 0;">{ts_models.get('Moving Average (7-Day)', {}).get('MAE', 581.46):.2f} <span style="font-size: 0.8rem; color: #64748B;">kWh MAE</span></div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">RMSE: {ts_models.get('Moving Average (7-Day)', {}).get('RMSE', 892.01):.2f} kWh</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #EC4899; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">Exponential Smoothing</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #EC4899; margin: 2px 0;">{ts_models.get('Simple Exponential Smoothing', {}).get('MAE', 620.66):.2f} <span style="font-size: 0.8rem; color: #64748B;">kWh MAE</span></div>
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 600;">RMSE: {ts_models.get('Simple Exponential Smoothing', {}).get('RMSE', 925.48):.2f} kWh</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #10B981; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size: 0.72rem; color: #64748B; font-weight: 700; text-transform: uppercase;">Holt-Winters Seasonal</div>
+                <div style="font-size: 1.45rem; font-weight: 800; color: #10B981; margin: 2px 0;">{ts_models.get('Holt-Winters Exponential Smoothing', {}).get('MAE', 729.00):.2f} <span style="font-size: 0.8rem; color: #64748B;">kWh MAE</span></div>
+                <div style="font-size: 0.72rem; color: #10B981; font-weight: 600;">Captures 7-day cyclical oscillations</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Historical Trend Line
         daily_ts['7D_MA'] = daily_ts['Total_Demand_kWh'].rolling(7).mean()
@@ -913,6 +996,32 @@ if is_ready:
             future_index = pd.date_range(start=last_dt + pd.Timedelta(days=1), periods=horizon)
             future_values = hw_model.forecast(horizon)
 
+            # Proportional Forecast Summary Metric Strip
+            tot_proj = float(np.sum(future_values))
+            daily_avg_proj = float(np.mean(future_values))
+            peak_proj = float(np.max(future_values))
+            peak_day_str = future_index[np.argmax(future_values)].strftime('%A, %b %d')
+
+            st.markdown(f"""
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 12px 0 16px 0;">
+                <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px; padding: 12px 16px; text-align: center;">
+                    <div style="font-size: 0.72rem; color: #166534; font-weight: 700; text-transform: uppercase;">Total Projected Demand ({horizon} Days)</div>
+                    <div style="font-size: 1.55rem; font-weight: 800; color: #15803D; margin: 2px 0;">{tot_proj:,.0f} <span style="font-size: 0.8rem; color: #166534;">kWh</span></div>
+                    <div style="font-size: 0.72rem; color: #166534; font-weight: 600;">Fleet-wide generation budget</div>
+                </div>
+                <div style="background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 10px; padding: 12px 16px; text-align: center;">
+                    <div style="font-size: 0.72rem; color: #075985; font-weight: 700; text-transform: uppercase;">Average Daily Demand</div>
+                    <div style="font-size: 1.55rem; font-weight: 800; color: #0284C7; margin: 2px 0;">{daily_avg_proj:,.1f} <span style="font-size: 0.8rem; color: #075985;">kWh/day</span></div>
+                    <div style="font-size: 0.72rem; color: #075985; font-weight: 600;">Expected 24-hr baseload</div>
+                </div>
+                <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px 16px; text-align: center;">
+                    <div style="font-size: 0.72rem; color: #92400E; font-weight: 700; text-transform: uppercase;">Expected Peak Load Day</div>
+                    <div style="font-size: 1.55rem; font-weight: 800; color: #D97706; margin: 2px 0;">{peak_proj:,.0f} <span style="font-size: 0.8rem; color: #92400E;">kWh</span></div>
+                    <div style="font-size: 0.72rem; color: #92400E; font-weight: 600;">Peak on <b>{peak_day_str}</b></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
             recent_slice = daily_ts.tail(45)
             fig_fc = go.Figure()
             fig_fc.add_trace(go.Scatter(
@@ -941,7 +1050,10 @@ if is_ready:
         # Time-Series Model Benchmark Comparison Table
         st.markdown("#### 📊 Time-Series Model Performance Benchmark")
         ts_eval_df = pd.DataFrame(metrics['timeseries_metrics']['Models']).T
-        st.dataframe(ts_eval_df.style.highlight_min(subset=['MAE', 'RMSE'], color='#BBF7D0'), use_container_width=True)
+        st.dataframe(
+            ts_eval_df.style.highlight_min(subset=['MAE', 'RMSE'], color='#BBF7D0').format({'MAE': '{:,.2f} kWh', 'RMSE': '{:,.2f} kWh'}),
+            use_container_width=True
+        )
 
     # =========================================================================
     # TAB 5: EXPLAINABLE AI (SHAP & LIME)
@@ -1030,7 +1142,12 @@ if is_ready:
 
         st.markdown("### 1. Regression Models Benchmark (Target: `Demand` in kWh)")
         reg_table = pd.DataFrame(metrics['regression_metrics']).T.sort_values(by='R2', ascending=False)
-        st.dataframe(reg_table.style.highlight_max(subset=['R2'], color='#BBF7D0').highlight_min(subset=['MAE', 'RMSE'], color='#BBF7D0'), use_container_width=True)
+        st.dataframe(
+            reg_table.style.highlight_max(subset=['R2'], color='#BBF7D0').highlight_min(subset=['MAE', 'RMSE'], color='#BBF7D0').format({
+                'MAE': '{:.3f} kWh', 'MSE': '{:.2f}', 'RMSE': '{:.3f} kWh', 'R2': '{:.4f}'
+            }),
+            use_container_width=True
+        )
 
         fig_rb = px.bar(
             reg_table.reset_index().rename(columns={'index': 'Model Name'}),
@@ -1047,7 +1164,12 @@ if is_ready:
         st.markdown("---")
         st.markdown("### 2. Classification Models Benchmark (Target: `High_Demand` ≥ 14.20 kWh)")
         clf_table = pd.DataFrame(metrics['classification_metrics']).T.sort_values(by='F1', ascending=False)
-        st.dataframe(clf_table.style.highlight_max(subset=['Accuracy', 'Precision', 'Recall', 'F1', 'ROC_AUC'], color='#BBF7D0'), use_container_width=True)
+        st.dataframe(
+            clf_table.style.highlight_max(subset=['Accuracy', 'Precision', 'Recall', 'F1', 'ROC_AUC'], color='#BBF7D0').format({
+                'Accuracy': '{:.2%}', 'Precision': '{:.2%}', 'Recall': '{:.2%}', 'F1': '{:.4f}', 'ROC_AUC': '{:.4f}'
+            }),
+            use_container_width=True
+        )
 
         fig_cb = px.bar(
             clf_table.reset_index().rename(columns={'index': 'Model Name'}),
@@ -1064,12 +1186,22 @@ if is_ready:
         st.markdown("---")
         st.markdown("### 3. Class Imbalance Mitigation Benchmark (ADASYN vs SMOTE vs ROS)")
         imb_table = pd.DataFrame(metrics['imbalance_comparison']).T
-        st.dataframe(imb_table.style.highlight_max(subset=['Recall', 'F1', 'ROC_AUC'], color='#BBF7D0'), use_container_width=True)
+        st.dataframe(
+            imb_table.style.highlight_max(subset=['Recall', 'F1', 'ROC_AUC'], color='#BBF7D0').format({
+                'Accuracy': '{:.2%}', 'Precision': '{:.2%}', 'Recall': '{:.2%}', 'F1': '{:.4f}', 'ROC_AUC': '{:.4f}'
+            }),
+            use_container_width=True
+        )
 
         st.markdown("---")
-        st.markdown("### 4. Time-Series Forecasting Evaluation")
+        st.markdown("### 4. Time-Series Forecasting Evaluation (Daily Fleet Demand)")
         ts_table = pd.DataFrame(metrics['timeseries_metrics']['Models']).T
-        st.dataframe(ts_table.style.highlight_min(subset=['MAE', 'RMSE'], color='#BBF7D0'), use_container_width=True)
+        st.dataframe(
+            ts_table.style.highlight_min(subset=['MAE', 'RMSE'], color='#BBF7D0').format({
+                'MAE': '{:,.2f} kWh', 'RMSE': '{:,.2f} kWh'
+            }),
+            use_container_width=True
+        )
 
     # Footer
     st.markdown("---")
