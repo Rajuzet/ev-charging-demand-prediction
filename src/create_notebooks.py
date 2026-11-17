@@ -367,7 +367,57 @@ cells_ml = [
         "cell_type": "markdown",
         "metadata": {},
         "source": [
-            "### 4. Time Series Forecasting Performance"
+            "### 4. Time Series Forecasting & Trend Analysis\n",
+            "- Augmented Dickey-Fuller (ADF) Stationarity Test\n",
+            "- Moving Average (7-Day & 30-Day Rolling)\n",
+            "- Additive Seasonal Decomposition (Trend, Seasonality, Noise)\n",
+            "- Exponential Smoothing (Simple & Holt-Winters Seasonal)"
+        ]
+    },
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "daily_ts = pd.read_csv(os.path.join('..', 'models', 'daily_timeseries.csv'))\n",
+            "daily_ts['Date'] = pd.to_datetime(daily_ts['Date'])\n",
+            "daily_ts['7D_MA'] = daily_ts['Total_Demand_kWh'].rolling(7).mean()\n",
+            "daily_ts['30D_MA'] = daily_ts['Total_Demand_kWh'].rolling(30).mean()\n",
+            "\n",
+            "plt.figure(figsize=(14, 5))\n",
+            "plt.plot(daily_ts['Date'], daily_ts['Total_Demand_kWh'], color='lightgray', alpha=0.7, label='Actual Daily Demand (kWh)')\n",
+            "plt.plot(daily_ts['Date'], daily_ts['7D_MA'], color='#0284c7', linewidth=2.5, label='7-Day Moving Average')\n",
+            "plt.plot(daily_ts['Date'], daily_ts['30D_MA'], color='#e11d48', linewidth=2, label='30-Day Moving Average')\n",
+            "plt.title('Daily EV Charging Demand Trend & Moving Averages (366 Days)', fontsize=14, fontweight='bold')\n",
+            "plt.xlabel('Date')\n",
+            "plt.ylabel('Total Daily Energy (kWh)')\n",
+            "plt.legend()\n",
+            "plt.tight_layout()\n",
+            "plt.show()"
+        ]
+    },
+    {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "decomp_path = os.path.join('..', 'models', 'timeseries_decomposition.csv')\n",
+            "if os.path.exists(decomp_path):\n",
+            "    decomp_df = pd.read_csv(decomp_path)\n",
+            "    decomp_df['Date'] = pd.to_datetime(decomp_df['Date'])\n",
+            "    fig, axes = plt.subplots(3, 1, figsize=(14, 8), sharex=True)\n",
+            "    axes[0].plot(decomp_df['Date'], decomp_df['Trend'], color='#0284c7', linewidth=2)\n",
+            "    axes[0].set_ylabel('Trend (kWh)')\n",
+            "    axes[0].set_title('Time Series Decomposition: Trend, 7-Day Seasonality & Noise', fontsize=14, fontweight='bold')\n",
+            "    axes[1].plot(decomp_df['Date'], decomp_df['Seasonal'], color='#10b981', linewidth=1.5)\n",
+            "    axes[1].set_ylabel('Seasonal (kWh)')\n",
+            "    axes[2].plot(decomp_df['Date'], decomp_df['Residual'], color='#64748b', linewidth=1)\n",
+            "    axes[2].set_ylabel('Residual (kWh)')\n",
+            "    axes[2].set_xlabel('Date')\n",
+            "    plt.tight_layout()\n",
+            "    plt.show()"
         ]
     },
     {
@@ -377,8 +427,10 @@ cells_ml = [
         "outputs": [],
         "source": [
             "ts_models = pd.DataFrame(metrics['timeseries_metrics']['Models']).T\n",
-            "print(\"=== Time Series Forecasting Benchmark ===\")\n",
-            "print(f\"ADF Test Stationary: {metrics['timeseries_metrics']['Stationarity_ADF']['Is_Stationary']} (p-value: {metrics['timeseries_metrics']['Stationarity_ADF']['p_value']})\")\n",
+            "print('=== Time Series Forecasting Benchmark ===')\n",
+            "print(f\"ADF Test Statistic : {metrics['timeseries_metrics']['Stationarity_ADF']['ADF_Statistic']:.4f}\")\n",
+            "print(f\"ADF p-value        : {metrics['timeseries_metrics']['Stationarity_ADF']['p_value']:.4e}\")\n",
+            "print(f\"Is Stationary      : {metrics['timeseries_metrics']['Stationarity_ADF']['Is_Stationary']} (Non-Stationary Growth Trend)\")\n",
             "ts_models"
         ]
     },
