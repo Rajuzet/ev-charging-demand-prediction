@@ -444,173 +444,253 @@ if is_ready:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        col_c1, col_c2 = st.columns([1, 1])
+        # =====================================================================
+        # ROW 1: VENUE GEOGRAPHY (WIDE) vs HARDWARE TECHNOLOGY (COMPACT)
+        # =====================================================================
+        col_c1, col_c2 = st.columns([1.65, 1.0])
         with col_c1:
-            st.markdown("### 🏢 Cumulative Energy Delivered by Location")
-            loc_agg = filtered_df.groupby('Location')['Demand'].agg(['sum', 'count', 'mean']).reset_index()
-            loc_agg = loc_agg.sort_values(by='sum', ascending=False)
-            fig_loc = px.bar(
-                loc_agg, x='Location', y='sum',
-                color='mean',
-                color_continuous_scale='Blues',
-                labels={
-                    'Location': 'Station Venue Location',
-                    'sum': 'Total Energy Delivered (kWh)',
-                    'mean': 'Avg Energy/Session (kWh)'
-                },
-                template='plotly_white'
-            )
-            fig_loc.update_traces(
-                hovertemplate="<b>%{x}</b><br>Total Delivered: %{y:,.1f} kWh<br>Avg per Session: %{marker.color:.2f} kWh<extra></extra>"
-            )
-            fig_loc.update_layout(
-                xaxis_title="Station Venue Category",
-                yaxis_title="Total Energy Delivered (kWh)",
-                yaxis=dict(tickformat=",.0f"),
-                xaxis_tickangle=-35,
-                margin=dict(t=20, b=40, l=10, r=10)
-            )
-            st.plotly_chart(fig_loc, use_container_width=True)
+            with st.container(border=True):
+                st.markdown("""
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 1.08rem; font-weight: 700; color: #0F172A;">🏢 Cumulative Energy Delivered by Location</span>
+                    <span style="font-size: 0.76rem; font-weight: 600; color: #0284C7; background: #E0F2FE; padding: 2px 8px; border-radius: 9999px;">14 Station Categories</span>
+                </div>
+                <div style="font-size: 0.82rem; color: #64748B; margin-bottom: 10px;">
+                    Aggregate energy delivered (kWh) sorted by demand intensity across physical installation venues
+                </div>
+                """, unsafe_allow_html=True)
+                loc_agg = filtered_df.groupby('Location')['Demand'].agg(['sum', 'count', 'mean']).reset_index()
+                loc_agg = loc_agg.sort_values(by='sum', ascending=False)
+                fig_loc = px.bar(
+                    loc_agg, x='Location', y='sum',
+                    color='mean',
+                    color_continuous_scale='Blues',
+                    labels={
+                        'Location': 'Station Venue Location',
+                        'sum': 'Total Delivered (kWh)',
+                        'mean': 'Avg kWh/Session'
+                    },
+                    template='plotly_white'
+                )
+                fig_loc.update_traces(
+                    hovertemplate="<b>%{x}</b><br>Total Delivered: %{y:,.1f} kWh<br>Avg per Session: %{marker.color:.2f} kWh<extra></extra>"
+                )
+                fig_loc.update_layout(
+                    height=410,
+                    xaxis_title="",
+                    yaxis_title="Total Energy (kWh)",
+                    yaxis=dict(tickformat=",.0f"),
+                    xaxis_tickangle=-38,
+                    coloraxis_colorbar=dict(title="Avg kWh", thickness=12, len=0.65, y=0.5),
+                    margin=dict(t=15, b=85, l=45, r=15)
+                )
+                st.plotly_chart(fig_loc, use_container_width=True)
 
         with col_c2:
-            st.markdown("### 🔌 Charger Technology Share & Utilization")
-            pie_data = filtered_df.copy()
-            pie_data['Charger_Label'] = pie_data['ChargerType'].map({
-                0: 'Level 2 AC Standard (Type 0)',
-                1: 'DC Fast Charger (Type 1)'
-            })
-            fig_pie = px.pie(
-                pie_data, names='Charger_Label', values='Demand',
-                color='Charger_Label',
-                color_discrete_map={
-                    'Level 2 AC Standard (Type 0)': '#38BDF8',
-                    'DC Fast Charger (Type 1)': '#0284C7'
-                },
-                hole=0.48,
-                labels={'Charger_Label': 'Hardware Specification', 'Demand': 'Energy (kWh)'},
-                template='plotly_white'
-            )
-            fig_pie.update_traces(
-                textposition='inside',
-                textinfo='percent+label',
-                hovertemplate="<b>%{label}</b><br>Total Energy: %{value:,.1f} kWh<br>Share of Total: %{percent}<extra></extra>"
-            )
-            fig_pie.update_layout(margin=dict(t=20, b=30, l=10, r=10), showlegend=True)
-            st.plotly_chart(fig_pie, use_container_width=True)
+            with st.container(border=True):
+                st.markdown("""
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 1.08rem; font-weight: 700; color: #0F172A;">🔌 Technology Share & Utilization</span>
+                    <span style="font-size: 0.76rem; font-weight: 600; color: #0284C7; background: #E0F2FE; padding: 2px 8px; border-radius: 9999px;">Hardware Split</span>
+                </div>
+                <div style="font-size: 0.82rem; color: #64748B; margin-bottom: 10px;">
+                    Delivered power split: Level 2 AC Standard (Type 0) vs. DC Fast Charging (Type 1)
+                </div>
+                """, unsafe_allow_html=True)
+                pie_data = filtered_df.copy()
+                pie_data['Charger_Label'] = pie_data['ChargerType'].map({
+                    0: 'Level 2 AC Standard (Type 0)',
+                    1: 'DC Fast Charger (Type 1)'
+                })
+                fig_pie = px.pie(
+                    pie_data, names='Charger_Label', values='Demand',
+                    color='Charger_Label',
+                    color_discrete_map={
+                        'Level 2 AC Standard (Type 0)': '#38BDF8',
+                        'DC Fast Charger (Type 1)': '#0284C7'
+                    },
+                    hole=0.52,
+                    labels={'Charger_Label': 'Hardware Spec', 'Demand': 'Energy (kWh)'},
+                    template='plotly_white'
+                )
+                fig_pie.update_traces(
+                    textposition='inside',
+                    textinfo='percent+label',
+                    hovertemplate="<b>%{label}</b><br>Total Energy: %{value:,.1f} kWh<br>Share: %{percent}<extra></extra>"
+                )
+                fig_pie.update_layout(
+                    height=410,
+                    margin=dict(t=15, b=40, l=15, r=15),
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
 
+        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+
+        # =====================================================================
+        # ROW 2: TEMPORAL PATTERNS (24-HR DIURNAL & WEEKLY CADENCE)
+        # =====================================================================
         col_c3, col_c4 = st.columns([1, 1])
         with col_c3:
-            st.markdown("### ⏰ 24-Hour Diurnal Demand Curve")
-            hour_agg = filtered_df.groupby('StartHour')['Demand'].agg(['count', 'mean']).reset_index()
-            fig_hour = go.Figure()
-            fig_hour.add_trace(go.Bar(
-                x=hour_agg['StartHour'], y=hour_agg['count'], name='Session Volume (Count)',
-                marker_color='#BAE6FD', opacity=0.75, yaxis='y1',
-                hovertemplate="Hour %{x}:00<br>Sessions: %{y:,}<extra></extra>"
-            ))
-            fig_hour.add_trace(go.Scatter(
-                x=hour_agg['StartHour'], y=hour_agg['mean'], name='Mean Demand (kWh)',
-                line=dict(color='#0284C7', width=3), mode='lines+markers', yaxis='y2',
-                hovertemplate="Hour %{x}:00<br>Mean Load: %{y:.2f} kWh<extra></extra>"
-            ))
-            fig_hour.update_layout(
-                xaxis=dict(title="Hour of Arrival (00:00 - 23:00 hrs)", tickmode='linear', dtick=2),
-                yaxis=dict(title="Active Session Volume (Count)", tickformat=","),
-                yaxis2=dict(title="Average Demand per Session (kWh)", overlaying='y', side='right', tickformat=".1f"),
-                template='plotly_white',
-                legend=dict(x=0.02, y=0.98),
-                margin=dict(t=20, b=40, l=10, r=10)
-            )
-            st.plotly_chart(fig_hour, use_container_width=True)
+            with st.container(border=True):
+                st.markdown("""
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 1.08rem; font-weight: 700; color: #0F172A;">⏰ 24-Hour Diurnal Demand Curve</span>
+                    <span style="font-size: 0.76rem; font-weight: 600; color: #10B981; background: #D1FAE5; padding: 2px 8px; border-radius: 9999px;">Dual-Axis Profile</span>
+                </div>
+                <div style="font-size: 0.82rem; color: #64748B; margin-bottom: 10px;">
+                    Hourly session arrival volume (bars) overlaid with mean demand load per session (line)
+                </div>
+                """, unsafe_allow_html=True)
+                hour_agg = filtered_df.groupby('StartHour')['Demand'].agg(['count', 'mean']).reset_index()
+                fig_hour = go.Figure()
+                fig_hour.add_trace(go.Bar(
+                    x=hour_agg['StartHour'], y=hour_agg['count'], name='Session Volume (Count)',
+                    marker_color='#BAE6FD', opacity=0.8, yaxis='y1',
+                    hovertemplate="Hour %{x}:00<br>Sessions: %{y:,}<extra></extra>"
+                ))
+                fig_hour.add_trace(go.Scatter(
+                    x=hour_agg['StartHour'], y=hour_agg['mean'], name='Mean Demand (kWh)',
+                    line=dict(color='#0284C7', width=3), mode='lines+markers', yaxis='y2',
+                    hovertemplate="Hour %{x}:00<br>Mean Load: %{y:.2f} kWh<extra></extra>"
+                ))
+                fig_hour.update_layout(
+                    height=390,
+                    xaxis=dict(title="Hour of Arrival (00:00 - 23:00 hrs)", tickmode='linear', dtick=2),
+                    yaxis=dict(title="Active Session Volume", tickformat=","),
+                    yaxis2=dict(title="Avg Demand (kWh)", overlaying='y', side='right', tickformat=".1f"),
+                    template='plotly_white',
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1.0),
+                    margin=dict(t=35, b=45, l=45, r=45)
+                )
+                st.plotly_chart(fig_hour, use_container_width=True)
 
         with col_c4:
-            st.markdown("### 📅 Day of Week Behavioral Distribution")
-            days_seq = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-            day_agg = filtered_df.groupby('DayName')['Demand'].agg(['count', 'mean']).reindex(days_seq).reset_index()
-            fig_day = px.bar(
-                day_agg, x='DayName', y='count',
-                color='mean', color_continuous_scale='Teal',
-                labels={
-                    'DayName': 'Day of the Week',
-                    'count': 'Total Number of Sessions',
-                    'mean': 'Avg Energy Demand (kWh)'
-                },
-                template='plotly_white'
-            )
-            fig_day.update_traces(
-                hovertemplate="<b>%{x}</b><br>Session Traffic: %{y:,}<br>Mean Demand: %{marker.color:.2f} kWh<extra></extra>"
-            )
-            fig_day.update_layout(
-                xaxis_title="Day of the Week",
-                yaxis_title="Total Number of Sessions",
-                yaxis=dict(tickformat=","),
-                margin=dict(t=20, b=40, l=10, r=10)
-            )
-            st.plotly_chart(fig_day, use_container_width=True)
+            with st.container(border=True):
+                st.markdown("""
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 1.08rem; font-weight: 700; color: #0F172A;">📅 Day of Week Behavioral Distribution</span>
+                    <span style="font-size: 0.76rem; font-weight: 600; color: #10B981; background: #D1FAE5; padding: 2px 8px; border-radius: 9999px;">Weekly Cadence</span>
+                </div>
+                <div style="font-size: 0.82rem; color: #64748B; margin-bottom: 10px;">
+                    Weekly session traffic and average load intensity across Monday through Sunday
+                </div>
+                """, unsafe_allow_html=True)
+                days_seq = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                day_agg = filtered_df.groupby('DayName')['Demand'].agg(['count', 'mean']).reindex(days_seq).reset_index()
+                fig_day = px.bar(
+                    day_agg, x='DayName', y='count',
+                    color='mean', color_continuous_scale='Teal',
+                    labels={
+                        'DayName': 'Day of the Week',
+                        'count': 'Total Sessions',
+                        'mean': 'Avg Demand (kWh)'
+                    },
+                    template='plotly_white'
+                )
+                fig_day.update_traces(
+                    hovertemplate="<b>%{x}</b><br>Session Traffic: %{y:,}<br>Mean Demand: %{marker.color:.2f} kWh<extra></extra>"
+                )
+                fig_day.update_layout(
+                    height=390,
+                    xaxis_title="",
+                    yaxis_title="Total Sessions",
+                    yaxis=dict(tickformat=","),
+                    coloraxis_colorbar=dict(title="Avg kWh", thickness=12, len=0.65, y=0.5),
+                    margin=dict(t=25, b=45, l=45, r=15)
+                )
+                st.plotly_chart(fig_day, use_container_width=True)
 
-        col_c5, col_c6 = st.columns([1, 1])
+        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+
+        # =====================================================================
+        # ROW 3: DURATION BEHAVIOR (WIDE) vs OPERATOR NETWORK SPLIT (COMPACT)
+        # =====================================================================
+        col_c5, col_c6 = st.columns([1.65, 1.0])
         with col_c5:
-            st.markdown("### 📈 Duration vs. Energy Demand Correlation")
-            scatter_sample = filtered_df.sample(min(2500, len(filtered_df)), random_state=42).copy()
-            scatter_sample['Charger_Label'] = scatter_sample['ChargerType'].map({
-                0: 'Level 2 AC Standard',
-                1: 'DC Fast Charger'
-            })
-            fig_scatter = px.scatter(
-                scatter_sample,
-                x='Duration_Mins', y='Demand',
-                color='Charger_Label',
-                color_discrete_map={
-                    'Level 2 AC Standard': '#0284C7',
-                    'DC Fast Charger': '#F59E0B'
-                },
-                opacity=0.65,
-                labels={
-                    'Duration_Mins': 'Session Duration (Minutes)',
-                    'Demand': 'Energy Consumed (kWh)',
-                    'Charger_Label': 'Charger Type'
-                },
-                template='plotly_white'
-            )
-            fig_scatter.update_traces(
-                hovertemplate="Duration: %{x} mins<br>Demand: %{y:.2f} kWh<extra>%{fullData.name}</extra>"
-            )
-            fig_scatter.update_layout(
-                xaxis_title="Plug-in Duration (Minutes)",
-                yaxis_title="Energy Consumed (kWh)",
-                xaxis=dict(tickformat=","),
-                yaxis=dict(tickformat=","),
-                margin=dict(t=20, b=40, l=10, r=10)
-            )
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            with st.container(border=True):
+                st.markdown("""
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 1.08rem; font-weight: 700; color: #0F172A;">📈 Duration vs. Energy Demand Correlation</span>
+                    <span style="font-size: 0.76rem; font-weight: 600; color: #F59E0B; background: #FEF3C7; padding: 2px 8px; border-radius: 9999px;">2,500 Session Sample</span>
+                </div>
+                <div style="font-size: 0.82rem; color: #64748B; margin-bottom: 10px;">
+                    Plug-in duration vs. energy delivered, segmented by AC Level 2 and DC Fast Charging
+                </div>
+                """, unsafe_allow_html=True)
+                scatter_sample = filtered_df.sample(min(2500, len(filtered_df)), random_state=42).copy()
+                scatter_sample['Charger_Label'] = scatter_sample['ChargerType'].map({
+                    0: 'Level 2 AC Standard',
+                    1: 'DC Fast Charger'
+                })
+                fig_scatter = px.scatter(
+                    scatter_sample,
+                    x='Duration_Mins', y='Demand',
+                    color='Charger_Label',
+                    color_discrete_map={
+                        'Level 2 AC Standard': '#0284C7',
+                        'DC Fast Charger': '#F59E0B'
+                    },
+                    opacity=0.65,
+                    labels={
+                        'Duration_Mins': 'Session Duration (Minutes)',
+                        'Demand': 'Energy Consumed (kWh)',
+                        'Charger_Label': 'Hardware Tier'
+                    },
+                    template='plotly_white'
+                )
+                fig_scatter.update_traces(
+                    hovertemplate="Duration: %{x} mins<br>Demand: %{y:.2f} kWh<extra>%{fullData.name}</extra>"
+                )
+                fig_scatter.update_layout(
+                    height=390,
+                    xaxis_title="Plug-in Duration (Minutes)",
+                    yaxis_title="Energy Consumed (kWh)",
+                    xaxis=dict(tickformat=","),
+                    yaxis=dict(tickformat=","),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1.0),
+                    margin=dict(t=35, b=45, l=45, r=15)
+                )
+                st.plotly_chart(fig_scatter, use_container_width=True)
 
         with col_c6:
-            st.markdown("### ⚡ Infrastructure Provider / Company Comparison")
-            comp_agg = filtered_df.groupby('ChargerCompany')['Demand'].agg(['sum', 'count', 'mean']).reset_index()
-            comp_agg['Company_Name'] = comp_agg['ChargerCompany'].map({
-                0: 'Operator Network A (Company 0)',
-                1: 'Operator Network B (Company 1)'
-            })
-            fig_comp = px.bar(
-                comp_agg, x='Company_Name', y='sum',
-                color='mean', color_continuous_scale='Viridis',
-                labels={
-                    'Company_Name': 'Charging Company Operator',
-                    'sum': 'Total Energy Delivered (kWh)',
-                    'mean': 'Avg kWh/Session'
-                },
-                template='plotly_white'
-            )
-            fig_comp.update_traces(
-                hovertemplate="<b>%{x}</b><br>Delivered Energy: %{y:,.1f} kWh<br>Avg per Session: %{marker.color:.2f} kWh<extra></extra>"
-            )
-            fig_comp.update_layout(
-                xaxis_title="Charging Network Operator",
-                yaxis_title="Total Energy Delivered (kWh)",
-                yaxis=dict(tickformat=",.0f"),
-                margin=dict(t=20, b=40, l=10, r=10)
-            )
-            st.plotly_chart(fig_comp, use_container_width=True)
+            with st.container(border=True):
+                st.markdown("""
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 1.08rem; font-weight: 700; color: #0F172A;">⚡ Infrastructure Provider Comparison</span>
+                    <span style="font-size: 0.76rem; font-weight: 600; color: #F59E0B; background: #FEF3C7; padding: 2px 8px; border-radius: 9999px;">2 Operator Networks</span>
+                </div>
+                <div style="font-size: 0.82rem; color: #64748B; margin-bottom: 10px;">
+                    Total delivered power and average load delivered by network operators
+                </div>
+                """, unsafe_allow_html=True)
+                comp_agg = filtered_df.groupby('ChargerCompany')['Demand'].agg(['sum', 'count', 'mean']).reset_index()
+                comp_agg['Company_Name'] = comp_agg['ChargerCompany'].map({
+                    0: 'Operator Network A',
+                    1: 'Operator Network B'
+                })
+                fig_comp = px.bar(
+                    comp_agg, x='Company_Name', y='sum',
+                    color='mean', color_continuous_scale='Viridis',
+                    labels={
+                        'Company_Name': 'Charging Operator',
+                        'sum': 'Total Energy Delivered (kWh)',
+                        'mean': 'Avg kWh/Session'
+                    },
+                    template='plotly_white'
+                )
+                fig_comp.update_traces(
+                    hovertemplate="<b>%{x}</b><br>Delivered: %{y:,.1f} kWh<br>Avg per Session: %{marker.color:.2f} kWh<extra></extra>"
+                )
+                fig_comp.update_layout(
+                    height=390,
+                    xaxis_title="",
+                    yaxis_title="Total Energy Delivered (kWh)",
+                    yaxis=dict(tickformat=",.0f"),
+                    coloraxis_colorbar=dict(title="Avg kWh", thickness=12, len=0.65, y=0.5),
+                    margin=dict(t=25, b=45, l=45, r=15)
+                )
+                st.plotly_chart(fig_comp, use_container_width=True)
 
     # =========================================================================
     # TAB 2: DEMAND PREDICTOR (REGRESSION)
