@@ -169,7 +169,19 @@ def load_models_and_metrics():
     ts_model_path = os.path.join(models_dir, 'timeseries_model.pkl')
     hw_model = joblib.load(ts_model_path) if os.path.exists(ts_model_path) else None
 
-    return reg_model, clf_model, preprocessor, metrics, daily_ts, shap_sample, hw_model
+    # Load precomputed SHAP and decomposition artifacts if available
+    shap_imp_file = os.path.join(models_dir, 'shap_importance.json')
+    shap_imp = None
+    if os.path.exists(shap_imp_file):
+        with open(shap_imp_file, 'r') as f:
+            shap_imp = json.load(f)
+
+    decomp_file = os.path.join(models_dir, 'timeseries_decomposition.csv')
+    decomp_df = pd.read_csv(decomp_file) if os.path.exists(decomp_file) else None
+    if decomp_df is not None:
+        decomp_df['Date'] = pd.to_datetime(decomp_df['Date'])
+
+    return reg_model, clf_model, preprocessor, metrics, daily_ts, shap_sample, hw_model, shap_imp, decomp_df
 
 
 def process_custom_uploaded_csv(file_obj, preprocessor, reg_model, clf_model, df_baseline):
@@ -247,7 +259,7 @@ def process_custom_uploaded_csv(file_obj, preprocessor, reg_model, clf_model, df
 
 try:
     df_clean = load_clean_data()
-    reg_model, clf_model, preprocessor, metrics, daily_ts, shap_sample, hw_model = load_models_and_metrics()
+    reg_model, clf_model, preprocessor, metrics, daily_ts, shap_sample, hw_model, shap_imp, decomp_df = load_models_and_metrics()
     is_ready = True
 except Exception as err:
     st.error(f"Error loading project artifacts: {err}")
@@ -873,6 +885,26 @@ if is_ready:
         )
         st.plotly_chart(fig_ts, use_container_width=True)
 
+        # Seasonal Decomposition Section (Trend, Seasonality, Residuals)
+        if decomp_df is not None:
+            st.markdown("### 🔍 Time-Series Decomposition (Trend, Seasonality & Noise)")
+            st.markdown("Decomposed using an additive seasonal model with a 7-day cyclical weekly period:")
+            
+            fig_decomp = go.Figure()
+            fig_decomp.add_trace(go.Scatter(x=decomp_df['Date'], y=decomp_df['Trend'], name='Underlying Growth Trend', line=dict(color='#0284C7', width=2.5)))
+            fig_decomp.add_trace(go.Scatter(x=decomp_df['Date'], y=decomp_df['Seasonal'], name='Weekly Seasonality (± kWh)', line=dict(color='#10B981', width=1.5)))
+            fig_decomp.add_trace(go.Scatter(x=decomp_df['Date'], y=decomp_df['Residual'], name='Irregular Noise / Residuals', line=dict(color='#94A3B8', width=1)))
+            
+            fig_decomp.update_layout(
+                title="Decomposed Trend, Weekly Seasonality & Residual Components",
+                xaxis_title="Date",
+                yaxis_title="Energy Deviation (kWh)",
+                template='plotly_white', hovermode='x unified',
+                margin=dict(t=30, b=40, l=10, r=10)
+            )
+            st.plotly_chart(fig_decomp, use_container_width=True)
+
+        # Future Demand Forecast
         st.markdown("### 🔮 Future Demand Forecasting (Holt-Winters Seasonal Smoothing)")
         horizon = st.slider("Select Forecast Horizon (Days)", min_value=7, max_value=30, value=14, step=1)
         
@@ -906,45 +938,50 @@ if is_ready:
             )
             st.plotly_chart(fig_fc, use_container_width=True)
 
+        # Time-Series Model Benchmark Comparison Table
+        st.markdown("#### 📊 Time-Series Model Performance Benchmark")
+        ts_eval_df = pd.DataFrame(metrics['timeseries_metrics']['Models']).T
+        st.dataframe(ts_eval_df.style.highlight_min(subset=['MAE', 'RMSE'], color='#BBF7D0'), use_container_width=True)
+
     # =========================================================================
     # TAB 5: EXPLAINABLE AI (SHAP & LIME)
     # =========================================================================
     elif app_mode == "🔍 Explainable AI (SHAP & LIME)":
         st.markdown("## 🔍 Explainable AI: SHAP & LIME Transparency")
-        st.markdown("Deciphering model decision boundaries globally and locally for station managers and utility auditors.")
+        st.markdown("Deciphering model decision boundaries globally with SHAP and locally with LIME for station managers and utility auditors.")
+
+        # 1. SHAP Global Feature Importance
+        st.markdown("### 1. Global Explainability: SHAP TreeExplainer Impact (kWh)")
+        st.markdown("SHAP (SHapley Additive exPlanations) computes the exact contribution of each feature towards the expected energy demand in **real-world kilowatt-hours**:")
+        
+        if shap_imp is not None:
+            shap_plot_df = pd.DataFrame(shap_imp).head(12)
+            fig_shap = px.bar(
+                shap_plot_df, x='Mean_SHAP_Impact_kWh', y='Feature', orientation='h',
+                color='Mean_SHAP_Impact_kWh', color_continuous_scale='Blues',
+                title="Top Features Influencing Energy Demand (Mean |SHAP| Impact in kWh)",
+                labels={'Mean_SHAP_Impact_kWh': 'Mean Absolute SHAP Value (kWh)', 'Feature': 'Input Feature'},
+                template='plotly_white'
+            )
+            fig_shap.update_traces(
+                hovertemplate="<b>%{y}</b><br>SHAP Impact: %{x:.3f} kWh<extra></extra>"
+            )
+            fig_shap.update_layout(
+                xaxis_title="Mean |SHAP Value| (Impact on Model Output in kWh)",
+                yaxis_title="Engineered Input Feature",
+                xaxis=dict(tickformat=".2f"),
+                yaxis=dict(autorange='reversed'),
+                margin=dict(t=30, b=40, l=10, r=10)
+            )
+            st.plotly_chart(fig_shap, use_container_width=True)
 
         cat_names = preprocessor.named_transformers_['cat'].get_feature_names_out(metrics['categorical_columns'])
         feature_names = list(cat_names) + metrics['numerical_columns']
 
-        st.markdown("### 1. Global Feature Importance (Random Forest Regressor)")
-        if hasattr(reg_model, 'feature_importances_'):
-            imp_df = pd.DataFrame({
-                'Feature': feature_names,
-                'Importance': reg_model.feature_importances_
-            }).sort_values('Importance', ascending=False).head(12)
-
-            fig_imp = px.bar(
-                imp_df, x='Importance', y='Feature', orientation='h',
-                color='Importance', color_continuous_scale='Blues',
-                title="Top 12 Features Governing EV Energy Demand",
-                labels={'Importance': 'Relative Importance Score', 'Feature': 'Engineered Feature'},
-                template='plotly_white'
-            )
-            fig_imp.update_traces(
-                hovertemplate="<b>%{y}</b><br>Importance Weight: %{x:.4f}<extra></extra>"
-            )
-            fig_imp.update_layout(
-                xaxis_title="Relative Feature Importance Weight (0.0 to 1.0)",
-                yaxis_title="Engineered Input Feature",
-                xaxis=dict(tickformat=".3f"),
-                yaxis=dict(autorange='reversed'),
-                margin=dict(t=30, b=40, l=10, r=10)
-            )
-            st.plotly_chart(fig_imp, use_container_width=True)
-
         st.markdown("---")
-        st.markdown("### 2. Local Session Explainer (LIME)")
-        st.write("Inspect how individual session characteristics contributed towards driving demand up or down:")
+        # 2. Local Session Explainer (LIME)
+        st.markdown("### 2. Local Explainability: LIME Session Instance Breakdown")
+        st.write("Inspect how individual session characteristics contributed towards driving demand up (+) or down (-) for a specific driver:")
 
         sample_id = st.slider("Select Sample Session from Audit Pool", 0, len(shap_sample)-1, 15)
         picked_session = shap_sample.iloc[[sample_id]]

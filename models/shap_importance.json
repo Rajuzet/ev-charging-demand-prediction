@@ -1,0 +1,134 @@
+[
+  {
+    "Feature": "Duration_Mins",
+    "Mean_SHAP_Impact_kWh": 7.8495854846100155
+  },
+  {
+    "Feature": "ChargerType_1",
+    "Mean_SHAP_Impact_kWh": 1.5494766411093892
+  },
+  {
+    "Feature": "ChargerType_Avg_Demand",
+    "Mean_SHAP_Impact_kWh": 1.3661383110459537
+  },
+  {
+    "Feature": "ChargerType_0",
+    "Mean_SHAP_Impact_kWh": 1.0835018962849454
+  },
+  {
+    "Feature": "ChargerCompany_0",
+    "Mean_SHAP_Impact_kWh": 0.5941528473767806
+  },
+  {
+    "Feature": "ChargerCompany_1",
+    "Mean_SHAP_Impact_kWh": 0.38587497946418314
+  },
+  {
+    "Feature": "StartMonth",
+    "Mean_SHAP_Impact_kWh": 0.3345243086733769
+  },
+  {
+    "Feature": "Hour_Cos",
+    "Mean_SHAP_Impact_kWh": 0.2591950532748601
+  },
+  {
+    "Feature": "Loc_Avg_Demand",
+    "Mean_SHAP_Impact_kWh": 0.17775716122113838
+  },
+  {
+    "Feature": "StartHour",
+    "Mean_SHAP_Impact_kWh": 0.1365741408543326
+  },
+  {
+    "Feature": "Hour_Sin",
+    "Mean_SHAP_Impact_kWh": 0.11484576758292787
+  },
+  {
+    "Feature": "Location_apartment",
+    "Mean_SHAP_Impact_kWh": 0.11199474744559464
+  },
+  {
+    "Feature": "Location_resort",
+    "Mean_SHAP_Impact_kWh": 0.08074409132577991
+  },
+  {
+    "Feature": "StartDay",
+    "Mean_SHAP_Impact_kWh": 0.07755776386842196
+  },
+  {
+    "Feature": "Location_market",
+    "Mean_SHAP_Impact_kWh": 0.06166862209564024
+  },
+  {
+    "Feature": "Location_public institution",
+    "Mean_SHAP_Impact_kWh": 0.05636603845704879
+  },
+  {
+    "Feature": "DayOfWeek",
+    "Mean_SHAP_Impact_kWh": 0.054212010255837925
+  },
+  {
+    "Feature": "Location_public area",
+    "Mean_SHAP_Impact_kWh": 0.05370186835407715
+  },
+  {
+    "Feature": "Location_hotel",
+    "Mean_SHAP_Impact_kWh": 0.042015576481870626
+  },
+  {
+    "Feature": "Location_public parking lot",
+    "Mean_SHAP_Impact_kWh": 0.033342719195837124
+  },
+  {
+    "Feature": "Location_company",
+    "Mean_SHAP_Impact_kWh": 0.025167753665462995
+  },
+  {
+    "Feature": "TimeOfDay_Afternoon",
+    "Mean_SHAP_Impact_kWh": 0.019921153399650005
+  },
+  {
+    "Feature": "Location_restaurant",
+    "Mean_SHAP_Impact_kWh": 0.018089678515728527
+  },
+  {
+    "Feature": "TimeOfDay_Morning",
+    "Mean_SHAP_Impact_kWh": 0.017586785850685314
+  },
+  {
+    "Feature": "TimeOfDay_Evening",
+    "Mean_SHAP_Impact_kWh": 0.013719472979423554
+  },
+  {
+    "Feature": "Location_golf",
+    "Mean_SHAP_Impact_kWh": 0.008955284361999416
+  },
+  {
+    "Feature": "IsWeekend_0",
+    "Mean_SHAP_Impact_kWh": 0.008444812342950173
+  },
+  {
+    "Feature": "TimeOfDay_Night",
+    "Mean_SHAP_Impact_kWh": 0.0077638944662298814
+  },
+  {
+    "Feature": "Location_camping",
+    "Mean_SHAP_Impact_kWh": 0.006314180969344807
+  },
+  {
+    "Feature": "Location_accommodation",
+    "Mean_SHAP_Impact_kWh": 0.005816204809230905
+  },
+  {
+    "Feature": "IsWeekend_1",
+    "Mean_SHAP_Impact_kWh": 0.004500393539990938
+  },
+  {
+    "Feature": "Location_sightseeing",
+    "Mean_SHAP_Impact_kWh": 0.004036852988611209
+  },
+  {
+    "Feature": "Location_bus garage",
+    "Mean_SHAP_Impact_kWh": 0.0019449199033204191
+  }
+]
