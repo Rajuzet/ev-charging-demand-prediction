@@ -1,0 +1,164 @@
+{
+    "best_regression_model": "Random Forest",
+    "best_classification_model": "XGBoost",
+    "regression_metrics": {
+        "Linear Regression": {
+            "MAE": 5.6098,
+            "MSE": 75.4945,
+            "RMSE": 8.6888,
+            "R2": 0.5882
+        },
+        "Decision Tree": {
+            "MAE": 3.5226,
+            "MSE": 45.4999,
+            "RMSE": 6.7454,
+            "R2": 0.7518
+        },
+        "Random Forest": {
+            "MAE": 3.3767,
+            "MSE": 36.9744,
+            "RMSE": 6.0807,
+            "R2": 0.7983
+        },
+        "Gradient Boosting": {
+            "MAE": 3.509,
+            "MSE": 38.8925,
+            "RMSE": 6.2364,
+            "R2": 0.7878
+        },
+        "XGBoost": {
+            "MAE": 3.4301,
+            "MSE": 37.4713,
+            "RMSE": 6.1214,
+            "R2": 0.7956
+        },
+        "LightGBM": {
+            "MAE": 3.476,
+            "MSE": 37.9694,
+            "RMSE": 6.1619,
+            "R2": 0.7929
+        }
+    },
+    "classification_metrics": {
+        "Logistic Regression": {
+            "Accuracy": 0.8434,
+            "Precision": 0.828,
+            "Recall": 0.8656,
+            "F1": 0.8464,
+            "ROC_AUC": 0.9146
+        },
+        "Decision Tree": {
+            "Accuracy": 0.892,
+            "Precision": 0.8736,
+            "Recall": 0.9156,
+            "F1": 0.8941,
+            "ROC_AUC": 0.9299
+        },
+        "Random Forest": {
+            "Accuracy": 0.898,
+            "Precision": 0.8657,
+            "Recall": 0.9413,
+            "F1": 0.9019,
+            "ROC_AUC": 0.9562
+        },
+        "KNN": {
+            "Accuracy": 0.7817,
+            "Precision": 0.7771,
+            "Recall": 0.7879,
+            "F1": 0.7825,
+            "ROC_AUC": 0.8602
+        },
+        "SVM": {
+            "Accuracy": 0.8112,
+            "Precision": 0.7989,
+            "Recall": 0.83,
+            "F1": 0.8142,
+            "ROC_AUC": 0.8954
+        },
+        "XGBoost": {
+            "Accuracy": 0.9013,
+            "Precision": 0.8745,
+            "Recall": 0.9364,
+            "F1": 0.9044,
+            "ROC_AUC": 0.9615
+        },
+        "LightGBM": {
+            "Accuracy": 0.9009,
+            "Precision": 0.873,
+            "Recall": 0.9375,
+            "F1": 0.9041,
+            "ROC_AUC": 0.961
+        }
+    },
+    "imbalance_comparison": {
+        "Baseline (No Resampling)": {
+            "Accuracy": 0.8992,
+            "Precision": 0.8923,
+            "Recall": 0.8315,
+            "F1": 0.8608,
+            "ROC_AUC": 0.9566
+        },
+        "Random Oversampling": {
+            "Accuracy": 0.9089,
+            "Precision": 0.8518,
+            "Recall": 0.9164,
+            "F1": 0.8829,
+            "ROC_AUC": 0.9587
+        },
+        "SMOTE": {
+            "Accuracy": 0.9108,
+            "Precision": 0.8552,
+            "Recall": 0.9175,
+            "F1": 0.8852,
+            "ROC_AUC": 0.9588
+        },
+        "ADASYN": {
+            "Accuracy": 0.9134,
+            "Precision": 0.8478,
+            "Recall": 0.9374,
+            "F1": 0.8903,
+            "ROC_AUC": 0.96
+        }
+    },
+    "timeseries_metrics": {
+        "Stationarity_ADF": {
+            "ADF_Statistic": -1.88,
+            "p_value": 0.341532,
+            "Is_Stationary": false
+        },
+        "Models": {
+            "Moving Average (7-Day)": {
+                "MAE": 581.46,
+                "RMSE": 892.01
+            },
+            "Simple Exponential Smoothing": {
+                "MAE": 620.66,
+                "RMSE": 925.48
+            },
+            "Holt-Winters Exponential Smoothing": {
+                "MAE": 729.0,
+                "RMSE": 978.22
+            }
+        }
+    },
+    "categorical_columns": [
+        "Location",
+        "ChargerCompany",
+        "ChargerType",
+        "TimeOfDay",
+        "IsWeekend"
+    ],
+    "numerical_columns": [
+        "Duration_Mins",
+        "StartHour",
+        "StartDay",
+        "StartMonth",
+        "DayOfWeek",
+        "Hour_Sin",
+        "Hour_Cos",
+        "Loc_Avg_Demand",
+        "ChargerType_Avg_Demand"
+    ],
+    "demand_median_threshold": 14.2,
+    "total_records_trained": 72421
+}
