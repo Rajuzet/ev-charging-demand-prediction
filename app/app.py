@@ -477,36 +477,52 @@ if is_ready:
         st.markdown("## ⚡ Session Energy Demand Predictor")
         st.markdown(f"Powered by the champion **{metrics.get('best_regression_model', 'Random Forest')}** regressor ($R^2 = 0.80$, MAE $= 3.38$ kWh).")
 
-        # Scenario Presets
-        st.markdown("##### ⚡ Quick Scenarios")
+        # State Management for Scenario Presets
+        if 'reg_dur' not in st.session_state:
+            st.session_state['reg_dur'] = 90
+        if 'reg_hour' not in st.session_state:
+            st.session_state['reg_hour'] = 14
+        if 'reg_type' not in st.session_state:
+            st.session_state['reg_type'] = 0
+
+        # Scenario Presets Buttons
+        st.markdown("##### ⚡ Quick Scenario Presets")
         q1, q2, q3 = st.columns(3)
-        preset_dur = 90
-        preset_hour = 14
-        preset_type = 0
-        if q1.button("🚗 Workplace Commute (2 hrs, AC)"):
-            preset_dur = 120
-            preset_hour = 9
-            preset_type = 0
-        if q2.button("⚡ Highway DC Fast Charge (30 min)"):
-            preset_dur = 30
-            preset_hour = 17
-            preset_type = 1
-        if q3.button("🏨 Overnight Hotel Charge (6 hrs)"):
-            preset_dur = 360
-            preset_hour = 21
-            preset_type = 0
+        if q1.button("🚗 Workplace Commute (2 hrs, AC)", use_container_width=True):
+            st.session_state['reg_dur'] = 120
+            st.session_state['reg_hour'] = 9
+            st.session_state['reg_type'] = 0
+            st.rerun()
+        if q2.button("⚡ Highway DC Fast Charge (30 min)", use_container_width=True):
+            st.session_state['reg_dur'] = 30
+            st.session_state['reg_hour'] = 17
+            st.session_state['reg_type'] = 1
+            st.rerun()
+        if q3.button("🏨 Overnight Hotel Charge (6 hrs)", use_container_width=True):
+            st.session_state['reg_dur'] = 360
+            st.session_state['reg_hour'] = 21
+            st.session_state['reg_type'] = 0
+            st.rerun()
 
         p_col1, p_col2 = st.columns([1, 1])
         with p_col1:
             st.markdown("#### 1. Configure Session Parameters")
             in_loc = st.selectbox("Charging Location Venue", locations_list, index=0)
             in_company = st.selectbox("Charging Station Operator", [0, 1], format_func=lambda x: f"Operator Network {x+1}")
-            in_type = st.radio("Hardware Speed", [0, 1], index=preset_type, format_func=lambda x: "Standard AC (Type 0)" if x == 0 else "DC Fast Charger (Type 1)", horizontal=True)
-            in_duration = st.slider("Session Duration (minutes)", min_value=10, max_value=720, value=preset_dur, step=5)
+            in_type = st.radio(
+                "Hardware Speed", [0, 1],
+                index=st.session_state['reg_type'],
+                format_func=lambda x: "Standard AC (Type 0)" if x == 0 else "DC Fast Charger (Type 1)",
+                horizontal=True
+            )
+            in_duration = st.slider(
+                "Session Duration (minutes)", min_value=10, max_value=720,
+                value=st.session_state['reg_dur'], step=5
+            )
             
             sub_c1, sub_c2 = st.columns(2)
             with sub_c1:
-                in_hour = st.slider("Arrival Hour", 0, 23, preset_hour)
+                in_hour = st.slider("Arrival Hour", 0, 23, value=st.session_state['reg_hour'])
                 in_month = st.selectbox("Month of Year", list(range(1, 13)), index=5)
             with sub_c2:
                 in_day = st.slider("Day of Month", 1, 31, 15)
@@ -542,13 +558,19 @@ if is_ready:
 
             proc_input = preprocessor.transform(input_df)
             predicted_demand = max(0.5, float(reg_model.predict(proc_input)[0]))
+            transfer_rate = predicted_demand / (in_duration / 60.0)
+            est_cost_usd = predicted_demand * 0.28
 
             # Metric Display
             st.markdown(f"""
             <div style="background: #F8FAFC; border: 2px solid #38BDF8; border-radius: 14px; padding: 20px; text-align: center; margin-bottom: 16px;">
                 <div style="font-size: 0.85rem; color: #64748B; font-weight: 700; text-transform: uppercase;">Estimated Energy Delivered</div>
                 <div style="font-size: 2.8rem; font-weight: 800; color: #0284C7; margin: 4px 0;">{predicted_demand:.2f} <span style="font-size: 1.2rem; color: #64748B;">kWh</span></div>
-                <div style="font-size: 0.85rem; color: #0F766E; font-weight: 600;">Power Transfer Rate: ~{(predicted_demand / (in_duration/60.0)):.2f} kW</div>
+                <div style="display: flex; justify-content: space-around; margin-top: 10px; font-size: 0.85rem; font-weight: 600;">
+                    <span style="color: #0F766E;">⚡ Avg Power: ~{transfer_rate:.1f} kW</span>
+                    <span style="color: #6366F1;">💵 Est. Cost: ~${est_cost_usd:.2f}</span>
+                    <span style="color: {'#B91C1C' if predicted_demand >= 14.2 else '#15803D'};">🏷️ Tier: {'High Demand' if predicted_demand >= 14.2 else 'Normal Demand'}</span>
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -556,11 +578,12 @@ if is_ready:
             fig_g = go.Figure(go.Indicator(
                 mode="gauge+number+delta",
                 value=predicted_demand,
+                number={'suffix': " kWh", 'valueformat': ".2f"},
                 domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Predicted Session Demand (kWh)"},
+                title={'text': "Session Energy vs Fleet Benchmark (kWh)"},
                 delta={'reference': df_clean['Demand'].mean(), 'increasing': {'color': '#0284C7'}},
                 gauge={
-                    'axis': {'range': [0, 80]},
+                    'axis': {'range': [0, 80], 'tickformat': ".0f", 'tickwidth': 1},
                     'bar': {'color': "#0284C7"},
                     'steps': [
                         {'range': [0, 14.2], 'color': "#E0F2FE"},
