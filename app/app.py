@@ -302,7 +302,6 @@ if is_ready:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # Visual Analytics Section
         col_c1, col_c2 = st.columns([1, 1])
         with col_c1:
             st.markdown("### 🏢 Cumulative Energy Delivered by Location")
@@ -319,9 +318,13 @@ if is_ready:
                 },
                 template='plotly_white'
             )
+            fig_loc.update_traces(
+                hovertemplate="<b>%{x}</b><br>Total Delivered: %{y:,.1f} kWh<br>Avg per Session: %{marker.color:.2f} kWh<extra></extra>"
+            )
             fig_loc.update_layout(
                 xaxis_title="Station Venue Category",
                 yaxis_title="Total Energy Delivered (kWh)",
+                yaxis=dict(tickformat=",.0f"),
                 xaxis_tickangle=-35,
                 margin=dict(t=20, b=40, l=10, r=10)
             )
@@ -348,7 +351,7 @@ if is_ready:
             fig_pie.update_traces(
                 textposition='inside',
                 textinfo='percent+label',
-                hovertemplate="<b>%{label}</b><br>Total Demand: %{value:,.0f} kWh<br>Share: %{percent}"
+                hovertemplate="<b>%{label}</b><br>Total Energy: %{value:,.1f} kWh<br>Share of Total: %{percent}<extra></extra>"
             )
             fig_pie.update_layout(margin=dict(t=20, b=30, l=10, r=10), showlegend=True)
             st.plotly_chart(fig_pie, use_container_width=True)
@@ -360,16 +363,18 @@ if is_ready:
             fig_hour = go.Figure()
             fig_hour.add_trace(go.Bar(
                 x=hour_agg['StartHour'], y=hour_agg['count'], name='Session Volume (Count)',
-                marker_color='#BAE6FD', opacity=0.75, yaxis='y1'
+                marker_color='#BAE6FD', opacity=0.75, yaxis='y1',
+                hovertemplate="Hour %{x}:00<br>Sessions: %{y:,}<extra></extra>"
             ))
             fig_hour.add_trace(go.Scatter(
                 x=hour_agg['StartHour'], y=hour_agg['mean'], name='Mean Demand (kWh)',
-                line=dict(color='#0284C7', width=3), mode='lines+markers', yaxis='y2'
+                line=dict(color='#0284C7', width=3), mode='lines+markers', yaxis='y2',
+                hovertemplate="Hour %{x}:00<br>Mean Load: %{y:.2f} kWh<extra></extra>"
             ))
             fig_hour.update_layout(
-                xaxis=dict(title="Hour of Arrival (0 - 23 hrs)", tickmode='linear'),
-                yaxis=dict(title="Active Session Volume (Count)"),
-                yaxis2=dict(title="Average Demand per Session (kWh)", overlaying='y', side='right'),
+                xaxis=dict(title="Hour of Arrival (00:00 - 23:00 hrs)", tickmode='linear', dtick=2),
+                yaxis=dict(title="Active Session Volume (Count)", tickformat=","),
+                yaxis2=dict(title="Average Demand per Session (kWh)", overlaying='y', side='right', tickformat=".1f"),
                 template='plotly_white',
                 legend=dict(x=0.02, y=0.98),
                 margin=dict(t=20, b=40, l=10, r=10)
@@ -390,9 +395,13 @@ if is_ready:
                 },
                 template='plotly_white'
             )
+            fig_day.update_traces(
+                hovertemplate="<b>%{x}</b><br>Session Traffic: %{y:,}<br>Mean Demand: %{marker.color:.2f} kWh<extra></extra>"
+            )
             fig_day.update_layout(
                 xaxis_title="Day of the Week",
                 yaxis_title="Total Number of Sessions",
+                yaxis=dict(tickformat=","),
                 margin=dict(t=20, b=40, l=10, r=10)
             )
             st.plotly_chart(fig_day, use_container_width=True)
@@ -421,9 +430,14 @@ if is_ready:
                 },
                 template='plotly_white'
             )
+            fig_scatter.update_traces(
+                hovertemplate="Duration: %{x} mins<br>Demand: %{y:.2f} kWh<extra>%{fullData.name}</extra>"
+            )
             fig_scatter.update_layout(
                 xaxis_title="Plug-in Duration (Minutes)",
                 yaxis_title="Energy Consumed (kWh)",
+                xaxis=dict(tickformat=","),
+                yaxis=dict(tickformat=","),
                 margin=dict(t=20, b=40, l=10, r=10)
             )
             st.plotly_chart(fig_scatter, use_container_width=True)
@@ -445,9 +459,13 @@ if is_ready:
                 },
                 template='plotly_white'
             )
+            fig_comp.update_traces(
+                hovertemplate="<b>%{x}</b><br>Delivered Energy: %{y:,.1f} kWh<br>Avg per Session: %{marker.color:.2f} kWh<extra></extra>"
+            )
             fig_comp.update_layout(
                 xaxis_title="Charging Network Operator",
                 yaxis_title="Total Energy Delivered (kWh)",
+                yaxis=dict(tickformat=",.0f"),
                 margin=dict(t=20, b=40, l=10, r=10)
             )
             st.plotly_chart(fig_comp, use_container_width=True)
@@ -673,14 +691,32 @@ if is_ready:
         daily_ts['30D_MA'] = daily_ts['Total_Demand_kWh'].rolling(30).mean()
 
         fig_ts = go.Figure()
-        fig_ts.add_trace(go.Scatter(x=daily_ts['Date'], y=daily_ts['Total_Demand_kWh'], name='Daily Actual (kWh)', line=dict(color='#CBD5E1', width=1)))
-        fig_ts.add_trace(go.Scatter(x=daily_ts['Date'], y=daily_ts['7D_MA'], name='7-Day Moving Avg', line=dict(color='#0284C7', width=2.5)))
-        fig_ts.add_trace(go.Scatter(x=daily_ts['Date'], y=daily_ts['30D_MA'], name='30-Day Moving Avg', line=dict(color='#F43F5E', width=2)))
+        fig_ts.add_trace(go.Scatter(
+            x=daily_ts['Date'], y=daily_ts['Total_Demand_kWh'],
+            name='Daily Actual Energy (kWh)',
+            line=dict(color='#CBD5E1', width=1.2),
+            hovertemplate="Date: %{x|%Y-%m-%d}<br>Actual Demand: %{y:,.1f} kWh<extra></extra>"
+        ))
+        fig_ts.add_trace(go.Scatter(
+            x=daily_ts['Date'], y=daily_ts['7D_MA'],
+            name='7-Day Moving Average',
+            line=dict(color='#0284C7', width=2.5),
+            hovertemplate="Date: %{x|%Y-%m-%d}<br>7D Rolling Avg: %{y:,.1f} kWh<extra></extra>"
+        ))
+        fig_ts.add_trace(go.Scatter(
+            x=daily_ts['Date'], y=daily_ts['30D_MA'],
+            name='30-Day Moving Average',
+            line=dict(color='#F43F5E', width=2),
+            hovertemplate="Date: %{x|%Y-%m-%d}<br>30D Rolling Avg: %{y:,.1f} kWh<extra></extra>"
+        ))
 
         fig_ts.update_layout(
             title="366-Day Historical Daily Aggregate EV Energy Demand (kWh)",
-            xaxis_title="Date", yaxis_title="Total Energy Delivered (kWh)",
-            template='plotly_white', hovermode='x unified'
+            xaxis_title="Calendar Date",
+            yaxis_title="Total Daily Energy Delivered (kWh)",
+            yaxis=dict(tickformat=",.0f"),
+            template='plotly_white', hovermode='x unified',
+            margin=dict(t=30, b=40, l=10, r=10)
         )
         st.plotly_chart(fig_ts, use_container_width=True)
 
@@ -694,13 +730,26 @@ if is_ready:
 
             recent_slice = daily_ts.tail(45)
             fig_fc = go.Figure()
-            fig_fc.add_trace(go.Scatter(x=recent_slice['Date'], y=recent_slice['Total_Demand_kWh'], name='Recent Actuals', line=dict(color='#0284C7', width=2.5)))
-            fig_fc.add_trace(go.Scatter(x=future_index, y=future_values, name='Holt-Winters Forecast', line=dict(color='#10B981', width=3, dash='dash')))
+            fig_fc.add_trace(go.Scatter(
+                x=recent_slice['Date'], y=recent_slice['Total_Demand_kWh'],
+                name='Recent Actuals (kWh)',
+                line=dict(color='#0284C7', width=2.5),
+                hovertemplate="Date: %{x|%Y-%m-%d}<br>Historical: %{y:,.1f} kWh<extra></extra>"
+            ))
+            fig_fc.add_trace(go.Scatter(
+                x=future_index, y=future_values,
+                name='Holt-Winters Seasonal Forecast',
+                line=dict(color='#10B981', width=3, dash='dash'),
+                hovertemplate="Date: %{x|%Y-%m-%d}<br>Projected Demand: %{y:,.1f} kWh<extra></extra>"
+            ))
 
             fig_fc.update_layout(
                 title=f"Next {horizon}-Day Predictive Energy Demand Outlook",
-                xaxis_title="Date", yaxis_title="Energy (kWh)",
-                template='plotly_white'
+                xaxis_title="Forecast Date",
+                yaxis_title="Projected Energy Demand (kWh)",
+                yaxis=dict(tickformat=",.0f"),
+                template='plotly_white',
+                margin=dict(t=30, b=40, l=10, r=10)
             )
             st.plotly_chart(fig_fc, use_container_width=True)
 
@@ -725,9 +774,19 @@ if is_ready:
                 imp_df, x='Importance', y='Feature', orientation='h',
                 color='Importance', color_continuous_scale='Blues',
                 title="Top 12 Features Governing EV Energy Demand",
+                labels={'Importance': 'Relative Importance Score', 'Feature': 'Engineered Feature'},
                 template='plotly_white'
             )
-            fig_imp.update_layout(yaxis=dict(autorange='reversed'), margin=dict(t=30, b=20, l=10, r=10))
+            fig_imp.update_traces(
+                hovertemplate="<b>%{y}</b><br>Importance Weight: %{x:.4f}<extra></extra>"
+            )
+            fig_imp.update_layout(
+                xaxis_title="Relative Feature Importance Weight (0.0 to 1.0)",
+                yaxis_title="Engineered Input Feature",
+                xaxis=dict(tickformat=".3f"),
+                yaxis=dict(autorange='reversed'),
+                margin=dict(t=30, b=40, l=10, r=10)
+            )
             st.plotly_chart(fig_imp, use_container_width=True)
 
         st.markdown("---")
@@ -756,10 +815,20 @@ if is_ready:
             lime_data, x='Effect Weight', y='Feature Condition', orientation='h',
             color='Impact',
             color_discrete_map={'Increases Demand (+)': '#10B981', 'Decreases Demand (-)': '#EF4444'},
-            title=f"LIME Feature Attribution for Session #{sample_id} (Actual Demand: {picked_session['Demand'].values[0]} kWh)",
+            title=f"LIME Feature Attribution for Session #{sample_id} (Actual Demand: {picked_session['Demand'].values[0]:.2f} kWh)",
+            labels={'Effect Weight': 'Impact on Predicted Energy (kWh)', 'Feature Condition': 'Decision Rule'},
             template='plotly_white'
         )
-        fig_l.update_layout(yaxis=dict(autorange='reversed'), margin=dict(t=30, b=20, l=10, r=10))
+        fig_l.update_traces(
+            hovertemplate="<b>%{y}</b><br>Attribution: %{x:+.2f} kWh<extra></extra>"
+        )
+        fig_l.update_layout(
+            xaxis_title="Attribution Effect on Energy Demand (kWh)",
+            yaxis_title="Decision Rule Condition",
+            xaxis=dict(tickformat="+.2f"),
+            yaxis=dict(autorange='reversed'),
+            margin=dict(t=30, b=40, l=10, r=10)
+        )
         st.plotly_chart(fig_l, use_container_width=True)
 
     # =========================================================================
@@ -773,10 +842,34 @@ if is_ready:
         reg_table = pd.DataFrame(metrics['regression_metrics']).T.sort_values(by='R2', ascending=False)
         st.dataframe(reg_table.style.highlight_max(subset=['R2'], color='#BBF7D0').highlight_min(subset=['MAE', 'RMSE'], color='#BBF7D0'), use_container_width=True)
 
+        fig_rb = px.bar(
+            reg_table.reset_index().rename(columns={'index': 'Model Name'}),
+            x='Model Name', y='R2',
+            color='MAE', color_continuous_scale='Blues_r',
+            title="Regression Model Variance Explained (R² Score) & Mean Absolute Error (MAE)",
+            labels={'R2': 'R² Score (0.0 to 1.0)', 'MAE': 'MAE (kWh)', 'Model Name': 'Algorithm'},
+            template='plotly_white'
+        )
+        fig_rb.update_traces(hovertemplate="<b>%{x}</b><br>R² Score: %{y:.4f}<br>MAE: %{marker.color:.3f} kWh<extra></extra>")
+        fig_rb.update_layout(yaxis_title="R² Score (Higher is Better)", yaxis=dict(range=[0, 1.0], tickformat=".2f"), margin=dict(t=30, b=40, l=10, r=10))
+        st.plotly_chart(fig_rb, use_container_width=True)
+
         st.markdown("---")
         st.markdown("### 2. Classification Models Benchmark (Target: `High_Demand` ≥ 14.20 kWh)")
         clf_table = pd.DataFrame(metrics['classification_metrics']).T.sort_values(by='F1', ascending=False)
         st.dataframe(clf_table.style.highlight_max(subset=['Accuracy', 'Precision', 'Recall', 'F1', 'ROC_AUC'], color='#BBF7D0'), use_container_width=True)
+
+        fig_cb = px.bar(
+            clf_table.reset_index().rename(columns={'index': 'Model Name'}),
+            x='Model Name', y='F1',
+            color='ROC_AUC', color_continuous_scale='Teal',
+            title="Classification Model Benchmark: F1-Score & ROC-AUC",
+            labels={'F1': 'F1 Score (0.0 to 1.0)', 'ROC_AUC': 'ROC-AUC Score', 'Model Name': 'Algorithm'},
+            template='plotly_white'
+        )
+        fig_cb.update_traces(hovertemplate="<b>%{x}</b><br>F1 Score: %{y:.4f}<br>ROC-AUC: %{marker.color:.4f}<extra></extra>")
+        fig_cb.update_layout(yaxis_title="F1-Score (Higher is Better)", yaxis=dict(range=[0, 1.0], tickformat=".2f"), margin=dict(t=30, b=40, l=10, r=10))
+        st.plotly_chart(fig_cb, use_container_width=True)
 
         st.markdown("---")
         st.markdown("### 3. Class Imbalance Mitigation Benchmark (ADASYN vs SMOTE vs ROS)")
