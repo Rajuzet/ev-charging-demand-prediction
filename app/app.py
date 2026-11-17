@@ -172,6 +172,79 @@ def load_models_and_metrics():
     return reg_model, clf_model, preprocessor, metrics, daily_ts, shap_sample, hw_model
 
 
+def process_custom_uploaded_csv(file_obj, preprocessor, reg_model, clf_model, df_baseline):
+    """
+    Automated pipeline for uploaded CSV datasets:
+    - Cleans duplicates and validates datetimes/durations
+    - Engineers temporal and historical features
+    - Runs batch regression (Demand in kWh) and classification (High vs Normal)
+    """
+    df_up = pd.read_csv(file_obj)
+    df_up = df_up.drop_duplicates()
+    
+    # Parse datetimes
+    df_up['StartDatetime'] = pd.to_datetime(df_up['StartDatetime'], errors='coerce')
+    df_up['EndDatetime'] = pd.to_datetime(df_up['EndDatetime'], errors='coerce')
+    df_up = df_up.dropna(subset=['StartDatetime', 'EndDatetime'])
+    
+    # Calculate duration
+    calc_dur = (df_up['EndDatetime'] - df_up['StartDatetime']).dt.total_seconds() / 60.0
+    if 'Duration' in df_up.columns:
+        df_up['Duration_Mins'] = np.where(df_up['Duration'] > 0, df_up['Duration'], calc_dur)
+    else:
+        df_up['Duration_Mins'] = calc_dur
+    
+    valid_mask = (df_up['Duration_Mins'] > 0) & (df_up['Duration_Mins'] <= 1440)
+    df_up = df_up[valid_mask].reset_index(drop=True)
+    
+    # Temporal feature extraction
+    df_up['StartHour'] = df_up['StartDatetime'].dt.hour
+    df_up['StartDay'] = df_up['StartDatetime'].dt.day
+    df_up['StartMonth'] = df_up['StartDatetime'].dt.month
+    df_up['DayOfWeek'] = df_up['StartDatetime'].dt.day_of_week
+    df_up['DayName'] = df_up['StartDatetime'].dt.day_name()
+    df_up['IsWeekend'] = df_up['DayOfWeek'].isin([5, 6]).astype(int)
+    
+    def assign_tod(h):
+        if 5 <= h < 12: return 'Morning'
+        elif 12 <= h < 17: return 'Afternoon'
+        elif 17 <= h < 22: return 'Evening'
+        else: return 'Night'
+    df_up['TimeOfDay'] = df_up['StartHour'].apply(assign_tod)
+    
+    df_up['Hour_Sin'] = np.sin(2 * np.pi * df_up['StartHour'] / 24.0)
+    df_up['Hour_Cos'] = np.cos(2 * np.pi * df_up['StartHour'] / 24.0)
+    
+    # Match historical baselines from training distribution
+    loc_map = df_baseline.groupby('Location')['Demand'].mean().to_dict()
+    type_map = df_baseline.groupby('ChargerType')['Demand'].mean().to_dict()
+    overall_mean = df_baseline['Demand'].mean()
+    
+    df_up['Loc_Avg_Demand'] = df_up['Location'].map(loc_map).fillna(overall_mean)
+    df_up['ChargerType_Avg_Demand'] = df_up['ChargerType'].map(type_map).fillna(overall_mean)
+    
+    feat_cols = ['Location', 'ChargerCompany', 'ChargerType', 'TimeOfDay', 'IsWeekend',
+                 'Duration_Mins', 'StartHour', 'StartDay', 'StartMonth', 'DayOfWeek',
+                 'Hour_Sin', 'Hour_Cos', 'Loc_Avg_Demand', 'ChargerType_Avg_Demand']
+    
+    # Batch ML Predictions
+    X_proc = preprocessor.transform(df_up[feat_cols])
+    df_up['Predicted_Demand_kWh'] = np.round(np.maximum(0.5, reg_model.predict(X_proc)), 2)
+    df_up['Predicted_High_Demand'] = clf_model.predict(X_proc)
+    df_up['High_Demand_Prob'] = np.round(clf_model.predict_proba(X_proc)[:, 1], 4)
+    df_up['Demand_Tier'] = np.where(df_up['Predicted_High_Demand'] == 1, 'High Demand', 'Normal Demand')
+    
+    # Standardize target columns
+    if 'Demand' not in df_up.columns:
+        df_up['Demand'] = df_up['Predicted_Demand_kWh']
+        df_up['High_Demand'] = df_up['Predicted_High_Demand']
+    else:
+        if 'High_Demand' not in df_up.columns:
+            df_up['High_Demand'] = (df_up['Demand'] >= 14.2).astype(int)
+            
+    return df_up
+
+
 try:
     df_clean = load_clean_data()
     reg_model, clf_model, preprocessor, metrics, daily_ts, shap_sample, hw_model = load_models_and_metrics()
@@ -197,6 +270,35 @@ if is_ready:
         
         st.markdown("---")
         
+        # File Upload Slot
+        st.markdown("#### 📁 Upload Custom CSV Dataset")
+        uploaded_file = st.file_uploader(
+            "Upload Charging Records (.csv)",
+            type=["csv"],
+            help="Upload any raw or batch EV session CSV to auto-clean, feature engineer, and predict demand & tiers."
+        )
+        
+        if uploaded_file is not None:
+            try:
+                df_uploaded = process_custom_uploaded_csv(uploaded_file, preprocessor, reg_model, clf_model, df_clean)
+                st.success(f"✓ Processed {len(df_uploaded):,} uploaded sessions!")
+                use_uploaded_toggle = st.checkbox("Active: Use Uploaded Data", value=True)
+                if use_uploaded_toggle:
+                    active_df = df_uploaded
+                    is_custom_dataset = True
+                else:
+                    active_df = df_clean
+                    is_custom_dataset = False
+            except Exception as e:
+                st.error(f"Error processing CSV: {e}")
+                active_df = df_clean
+                is_custom_dataset = False
+        else:
+            active_df = df_clean
+            is_custom_dataset = False
+        
+        st.markdown("---")
+        
         app_mode = st.radio(
             "📍 Core Navigation",
             [
@@ -212,10 +314,10 @@ if is_ready:
         
         st.markdown("---")
         st.markdown("#### ⚙️ Global Station Filters")
-        locations_list = sorted(df_clean['Location'].unique())
+        locations_list = sorted(active_df['Location'].unique())
         selected_locs = st.multiselect("Station Location", locations_list, default=locations_list)
         
-        charger_types = sorted(df_clean['ChargerType'].unique())
+        charger_types = sorted(active_df['ChargerType'].unique())
         selected_types = st.multiselect("Charger Type", charger_types, default=charger_types, format_func=lambda x: "Level 2 AC" if x == 0 else "DC Fast Charger")
         
         st.markdown("---")
@@ -228,13 +330,14 @@ if is_ready:
         </div>
         """, unsafe_allow_html=True)
 
-    # Filtered View
-    filtered_df = df_clean[
-        (df_clean['Location'].isin(selected_locs)) &
-        (df_clean['ChargerType'].isin(selected_types))
+    # Filtered View based on active dataset
+    filtered_df = active_df[
+        (active_df['Location'].isin(selected_locs)) &
+        (active_df['ChargerType'].isin(selected_types))
     ]
 
     # TOP HERO HEADER
+    badge_text = f"CUSTOM UPLOAD ({len(active_df):,} SESSIONS)" if is_custom_dataset else "GUVI | HCL CAPSTONE"
     st.markdown(f"""
     <div class="hero-banner">
         <div>
@@ -246,11 +349,38 @@ if is_ready:
             </div>
         </div>
         <div style="text-align: right; margin-top: 8px;">
-            <span class="badge-pill">GUVI | HCL CAPSTONE</span>
-            <div style="font-size: 0.75rem; color: #CBD5E1; margin-top: 4px;">Clean Dataset: <b>72,421 Sessions</b></div>
+            <span class="badge-pill">{badge_text}</span>
+            <div style="font-size: 0.75rem; color: #CBD5E1; margin-top: 4px;">Active Pool: <b>{len(active_df):,} Sessions</b></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # If Custom File Uploaded, show Batch Scored Expander & Download Button
+    if is_custom_dataset:
+        with st.expander("📥 Uploaded Dataset Batch Scoring Summary & Export", expanded=True):
+            st.markdown(f"**Uploaded File:** `{uploaded_file.name}` | **Validated Sessions:** `{len(active_df):,}`")
+            up_c1, up_c2, up_c3 = st.columns(3)
+            with up_c1:
+                st.metric("Total Predicted Energy", f"{active_df['Predicted_Demand_kWh'].sum():,.1f} kWh")
+            with up_c2:
+                st.metric("Avg Predicted Demand", f"{active_df['Predicted_Demand_kWh'].mean():.2f} kWh")
+            with up_c3:
+                up_high_pct = (active_df['Predicted_High_Demand'].mean()) * 100
+                st.metric("High-Demand Ratio", f"{up_high_pct:.1f}%")
+            
+            # Show preview
+            preview_cols = ['Location', 'ChargerType', 'StartDatetime', 'Duration_Mins', 'Predicted_Demand_kWh', 'Demand_Tier', 'High_Demand_Prob']
+            st.dataframe(active_df[preview_cols].head(5), use_container_width=True)
+            
+            # Export CSV Button
+            csv_data = active_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Scored Dataset with Predictions (CSV)",
+                data=csv_data,
+                file_name=f"scored_{uploaded_file.name}",
+                mime="text/csv",
+                type="primary"
+            )
 
     # =========================================================================
     # TAB 1: EXECUTIVE OVERVIEW & EDA
