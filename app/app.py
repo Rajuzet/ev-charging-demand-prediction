@@ -5,8 +5,10 @@ Authors: Rajuzet
 """
 
 import os
+import io
 import json
 import joblib
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -143,10 +145,25 @@ st.markdown("""
 @st.cache_data
 def load_clean_data():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    clean_pkl = os.path.join(base_dir, 'data', 'processed', 'cleaned_charging_records.pkl')
     clean_csv = os.path.join(base_dir, 'data', 'processed', 'cleaned_charging_records.csv')
-    df = pd.read_csv(clean_csv)
-    df['StartDatetime'] = pd.to_datetime(df['StartDatetime'])
-    df['EndDatetime'] = pd.to_datetime(df['EndDatetime'])
+    
+    # Priority: Ultra-fast deserialization from Pickled artifact
+    if os.path.exists(clean_pkl):
+        df = joblib.load(clean_pkl)
+    else:
+        df = pd.read_csv(clean_csv)
+        df['StartDatetime'] = pd.to_datetime(df['StartDatetime'])
+        df['EndDatetime'] = pd.to_datetime(df['EndDatetime'])
+        try:
+            joblib.dump(df, clean_pkl)
+        except Exception:
+            pass
+
+    if not pd.api.types.is_datetime64_any_dtype(df['StartDatetime']):
+        df['StartDatetime'] = pd.to_datetime(df['StartDatetime'])
+    if not pd.api.types.is_datetime64_any_dtype(df['EndDatetime']):
+        df['EndDatetime'] = pd.to_datetime(df['EndDatetime'])
     return df
 
 
@@ -184,13 +201,15 @@ def load_models_and_metrics():
     return reg_model, clf_model, preprocessor, metrics, daily_ts, shap_sample, hw_model, shap_imp, decomp_df
 
 
-def process_custom_uploaded_csv(file_obj, preprocessor, reg_model, clf_model, df_baseline):
+def process_custom_uploaded_csv(file_obj, preprocessor, reg_model, clf_model, df_baseline, auto_pickle: bool = True):
     """
     Automated pipeline for uploaded CSV datasets:
     - Cleans duplicates and validates datetimes/durations
     - Engineers temporal and historical features
     - Runs batch regression (Demand in kWh) and classification (High vs Normal)
+    - Automatically serializes/pickles the scored dataset & feature payload to disk
     """
+    source_name = getattr(file_obj, 'name', 'custom_uploaded.csv')
     df_up = pd.read_csv(file_obj)
     df_up = df_up.drop_duplicates()
     
@@ -230,7 +249,7 @@ def process_custom_uploaded_csv(file_obj, preprocessor, reg_model, clf_model, df
     # Match historical baselines from training distribution
     loc_map = df_baseline.groupby('Location')['Demand'].mean().to_dict()
     type_map = df_baseline.groupby('ChargerType')['Demand'].mean().to_dict()
-    overall_mean = df_baseline['Demand'].mean()
+    overall_mean = float(df_baseline['Demand'].mean())
     
     df_up['Loc_Avg_Demand'] = df_up['Location'].map(loc_map).fillna(overall_mean)
     df_up['ChargerType_Avg_Demand'] = df_up['ChargerType'].map(type_map).fillna(overall_mean)
@@ -253,8 +272,40 @@ def process_custom_uploaded_csv(file_obj, preprocessor, reg_model, clf_model, df
     else:
         if 'High_Demand' not in df_up.columns:
             df_up['High_Demand'] = (df_up['Demand'] >= 14.2).astype(int)
+
+    # Auto-Pickle Serialization
+    pickle_info = None
+    if auto_pickle:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        auto_pickle_dir = os.path.join(base_dir, 'data', 'processed')
+        os.makedirs(auto_pickle_dir, exist_ok=True)
+        auto_pickle_path = os.path.join(auto_pickle_dir, 'uploaded_scored_data.pkl')
+        
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        payload = {
+            'source_filename': source_name,
+            'serialization_time': now_str,
+            'total_sessions': len(df_up),
+            'feature_columns': feat_cols,
+            'data': df_up,
+            'predicted_total_demand_kwh': float(df_up['Predicted_Demand_kWh'].sum()),
+            'predicted_avg_demand_kwh': float(df_up['Predicted_Demand_kWh'].mean()),
+            'predicted_high_demand_ratio': float(df_up['Predicted_High_Demand'].mean()),
+            'serialization_protocol': 'Joblib Protocol 5 (Pickle)'
+        }
+        joblib.dump(payload, auto_pickle_path)
+        file_size_kb = round(os.path.getsize(auto_pickle_path) / 1024, 2)
+        
+        pickle_info = {
+            'path': auto_pickle_path,
+            'size_kb': file_size_kb,
+            'timestamp': now_str,
+            'filename': source_name,
+            'total_sessions': len(df_up),
+            'payload': payload
+        }
             
-    return df_up
+    return df_up, pickle_info
 
 
 try:
@@ -290,10 +341,46 @@ if is_ready:
             help="Upload any raw or batch EV session CSV to auto-clean, feature engineer, and predict demand & tiers."
         )
         
-        if uploaded_file is not None:
+        # Auto-pickling configuration
+        auto_pickle_toggle = st.checkbox("⚡ Auto-Pickle Uploaded Data", value=True, help="Automatically serializes the scored dataset and feature matrix into models/ and data/processed/ as a .pkl artifact.")
+        
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        auto_pickle_path = os.path.join(base_dir, 'data', 'processed', 'uploaded_scored_data.pkl')
+        
+        # Load from disk if available and no new file uploaded
+        if uploaded_file is None and os.path.exists(auto_pickle_path):
+            load_cached = st.checkbox("📂 Load Last Pickled Upload", value=False, help="Instantly reload the previously auto-pickled upload session from disk.")
+            if load_cached:
+                try:
+                    cached_payload = joblib.load(auto_pickle_path)
+                    df_uploaded = cached_payload['data']
+                    st.session_state['uploaded_pickle_info'] = {
+                        'path': auto_pickle_path,
+                        'size_kb': round(os.path.getsize(auto_pickle_path) / 1024, 2),
+                        'timestamp': cached_payload.get('serialization_time', 'Cached'),
+                        'filename': cached_payload.get('source_filename', 'uploaded_scored_data.pkl'),
+                        'total_sessions': len(df_uploaded),
+                        'payload': cached_payload
+                    }
+                    st.info(f"Loaded {len(df_uploaded):,} sessions from auto-pickled artifact!")
+                    active_df = df_uploaded
+                    is_custom_dataset = True
+                except Exception as e:
+                    st.warning(f"Could not load cached pickle: {e}")
+                    active_df = df_clean
+                    is_custom_dataset = False
+            else:
+                active_df = df_clean
+                is_custom_dataset = False
+        elif uploaded_file is not None:
             try:
-                df_uploaded = process_custom_uploaded_csv(uploaded_file, preprocessor, reg_model, clf_model, df_clean)
+                df_uploaded, pickle_info = process_custom_uploaded_csv(
+                    uploaded_file, preprocessor, reg_model, clf_model, df_clean, auto_pickle=auto_pickle_toggle
+                )
+                st.session_state['uploaded_pickle_info'] = pickle_info
                 st.success(f"✓ Processed {len(df_uploaded):,} uploaded sessions!")
+                if auto_pickle_toggle and pickle_info:
+                    st.caption(f"⚡ Auto-pickled: `{os.path.basename(pickle_info['path'])}` ({pickle_info['size_kb']} KB)")
                 use_uploaded_toggle = st.checkbox("Active: Use Uploaded Data", value=True)
                 if use_uploaded_toggle:
                     active_df = df_uploaded
@@ -367,10 +454,27 @@ if is_ready:
     </div>
     """, unsafe_allow_html=True)
 
-    # If Custom File Uploaded, show Batch Scored Expander & Download Button
+    # If Custom File Uploaded or Loaded, show Batch Scored Expander & Dual Download Buttons
     if is_custom_dataset:
-        with st.expander("📥 Uploaded Dataset Batch Scoring Summary & Export", expanded=True):
-            st.markdown(f"**Uploaded File:** `{uploaded_file.name}` | **Validated Sessions:** `{len(active_df):,}`")
+        with st.expander("📥 Uploaded Dataset Batch Scoring & Serialization Summary", expanded=True):
+            p_info = st.session_state.get('uploaded_pickle_info', None)
+            source_file_name = p_info['filename'] if p_info else (uploaded_file.name if uploaded_file else "custom_dataset.csv")
+            
+            # Auto-pickling visual badge banner
+            if p_info:
+                st.markdown(f"""
+                <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-left: 4px solid #16A34A; padding: 12px 18px; border-radius: 8px; margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; color: #166534; font-size: 0.95rem;">⚡ Auto-Pickling Applied to Uploaded Dataset</span>
+                        <span style="font-size: 0.75rem; background: #DCFCE7; color: #15803D; padding: 3px 10px; border-radius: 9999px; font-weight: 700;">Joblib Protocol 5 (Pickle)</span>
+                    </div>
+                    <div style="font-size: 0.82rem; color: #15803D; margin-top: 4px;">
+                        Processed features, baseline encodings & batch ML predictions auto-pickled to <code>{p_info['path']}</code> ({p_info['size_kb']} KB) at {p_info['timestamp']}.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown(f"**Dataset Source:** `{source_file_name}` | **Validated Sessions:** `{len(active_df):,}`")
             up_c1, up_c2, up_c3 = st.columns(3)
             with up_c1:
                 st.metric("Total Predicted Energy", f"{active_df['Predicted_Demand_kWh'].sum():,.1f} kWh")
@@ -384,15 +488,35 @@ if is_ready:
             preview_cols = ['Location', 'ChargerType', 'StartDatetime', 'Duration_Mins', 'Predicted_Demand_kWh', 'Demand_Tier', 'High_Demand_Prob']
             st.dataframe(active_df[preview_cols].head(5), use_container_width=True)
             
-            # Export CSV Button
-            csv_data = active_df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📥 Download Scored Dataset with Predictions (CSV)",
-                data=csv_data,
-                file_name=f"scored_{uploaded_file.name}",
-                mime="text/csv",
-                type="primary"
-            )
+            # Export Options (CSV & Auto-Pickled PKL)
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                csv_data = active_df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Download Scored Dataset (CSV)",
+                    data=csv_data,
+                    file_name=f"scored_{os.path.splitext(source_file_name)[0]}.csv",
+                    mime="text/csv",
+                    type="primary",
+                    use_container_width=True
+                )
+            with col_d2:
+                pkl_payload = p_info['payload'] if (p_info and 'payload' in p_info) else {
+                    'data': active_df,
+                    'timestamp': datetime.now().isoformat(),
+                    'source': source_file_name
+                }
+                pkl_buffer = io.BytesIO()
+                joblib.dump(pkl_payload, pkl_buffer)
+                pkl_buffer.seek(0)
+                st.download_button(
+                    label="📦 Download Serialized Payload (.pkl)",
+                    data=pkl_buffer.getvalue(),
+                    file_name=f"scored_{os.path.splitext(source_file_name)[0]}.pkl",
+                    mime="application/octet-stream",
+                    help="Serialized binary pickle payload containing full DataFrame, metadata, and ML predictions.",
+                    use_container_width=True
+                )
 
     # =========================================================================
     # TAB 1: EXECUTIVE OVERVIEW & EDA
