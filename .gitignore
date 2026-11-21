@@ -13,8 +13,9 @@ ENV/
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
 
-# Data files (keep raw large datasets out of Git if over limits)
-# data/raw/*.csv
+# Data files (keep large generated caches out of Git)
+data/processed/*.pkl
+data/processed/test_sample_upload.csv
 
 # Streamlit
 .streamlit/secrets.toml
